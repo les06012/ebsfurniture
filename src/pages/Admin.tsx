@@ -1,111 +1,110 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { SectionTitle, cn } from '../components/Common';
 import { QAPost, Project } from '../types';
-import { PROJECTS, getProjects, getCategories, saveCategories } from '../data/projects';
+import { PROJECTS, getProjects } from '../data/projects';
 import { motion, AnimatePresence, Reorder } from 'motion/react';
-import { Lock, Plus, Trash2, Image, MessageSquare, LogOut, X, GripVertical, Edit2, Search, Eye, EyeOff, Key, Settings } from 'lucide-react';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
-const SortableCategory = ({ category, onDelete }: { category: string; onDelete: () => void }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: category });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className="flex items-center gap-2 bg-sage-50 px-3 py-1.5 rounded-full border border-sage-200 cursor-grab active:cursor-grabbing hover:border-sage-300 transition-colors"
-    >
-      <span className="text-sm font-medium text-sage-800">{category}</span>
-      <button 
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="text-sage-400 hover:text-red-500 transition-colors"
-        title="삭제"
-      >
-        <X size={14} />
-      </button>
-    </div>
-  );
-};
+import { Lock, Plus, Trash2, Image, MessageSquare, LogOut, X, GripVertical, Edit2, Settings, Eye, EyeOff, Search, Home, Tag } from 'lucide-react';
 
 export const Admin = () => {
   const navigate = useNavigate();
   const [isAdmin, setIsAdmin] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
-  const [showLoginPwd, setShowLoginPwd] = useState(false);
-  const [activeTab, setActiveTab] = useState<'gallery' | 'qa' | 'settings'>('gallery');
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [activeTab, setActiveTab] = useState<'gallery' | 'qa' | 'home'>('gallery');
 
   // Settings State
-  const [homeHeroImage, setHomeHeroImage] = useState('https://images.unsplash.com/photo-1581428982868-e410dd047a90?q=80&w=2000&auto=format&fit=crop');
-  const [categories, setCategories] = useState<string[]>([]);
-  const [newCategory, setNewCategory] = useState('');
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = (event: any) => {
-    const { active, over } = event;
-
-    if (active.id !== over.id) {
-      setCategories((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
-        const newCategories = arrayMove(items, oldIndex, newIndex);
-        saveCategories(newCategories);
-        return newCategories;
-      });
-    }
-  };
-
-  // Password Change State
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [currentPwd, setCurrentPwd] = useState('');
-  const [newPwd, setNewPwd] = useState('');
-  const [confirmPwd, setConfirmPwd] = useState('');
-  const [showCurrentPwd, setShowCurrentPwd] = useState(false);
-  const [showNewPwd, setShowNewPwd] = useState(false);
-  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Gallery State
   const [projects, setProjects] = useState<Project[]>([]);
   const [isWritingProject, setIsWritingProject] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
-  const [projectSearchQuery, setProjectSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('전체');
+  const [selectedSubCategory, setSelectedSubCategory] = useState('전체');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Home State
+  const [homeHeroImage, setHomeHeroImage] = useState(() => {
+    return localStorage.getItem('homeHeroImage') || 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2000&auto=format&fit=crop';
+  });
+
+  const handleSaveHomeHeroImage = (e: React.FormEvent) => {
+    e.preventDefault();
+    localStorage.setItem('homeHeroImage', homeHeroImage);
+    alert('메인화면 이미지가 성공적으로 변경되었습니다.');
+  };
+
+  const [categories, setCategories] = useState<string[]>(() => {
+    const saved = localStorage.getItem('portfolioCategories');
+    if (saved) return JSON.parse(saved);
+    return ['전체', '주거', '상업', '사무', '숙박', '가구'];
+  });
+  const [newCategory, setNewCategory] = useState('');
+
+  const handleReorder = (newCategories: string[]) => {
+    setCategories(newCategories);
+    localStorage.setItem('portfolioCategories', JSON.stringify(newCategories));
+  };
+
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategory.trim()) return;
+    if (categories.includes(newCategory.trim())) {
+      alert('이미 존재하는 카테고리입니다.');
+      return;
+    }
+    
+    const updatedCategories = [...categories, newCategory.trim()];
+    setCategories(updatedCategories);
+    localStorage.setItem('portfolioCategories', JSON.stringify(updatedCategories));
+    setNewCategory('');
+  };
+
+  const handleDeleteCategory = (categoryToDelete: string) => {
+    if (categoryToDelete === '전체') {
+      alert('기본 카테고리는 삭제할 수 없습니다.');
+      return;
+    }
+    if (confirm(`'${categoryToDelete}' 카테고리를 삭제하시겠습니까?`)) {
+      const updatedCategories = categories.filter(c => c !== categoryToDelete);
+      setCategories(updatedCategories);
+      localStorage.setItem('portfolioCategories', JSON.stringify(updatedCategories));
+      
+      // If the deleted category was selected, reset to '전체'
+      if (selectedCategory === categoryToDelete) {
+        setSelectedCategory('전체');
+      }
+    }
+  };
+
+  const availableSubCategories = useMemo(() => {
+    if (selectedCategory === '전체') return [];
+    const subs = new Set<string>();
+    projects.filter(p => p.category === selectedCategory).forEach(p => {
+      if (p.subCategory) subs.add(p.subCategory);
+    });
+    return ['전체', ...Array.from(subs)];
+  }, [selectedCategory, projects]);
+
+  useEffect(() => {
+    setSelectedSubCategory('전체');
+  }, [selectedCategory]);
+
+  const filteredProjects = projects.filter(p => {
+    const matchCategory = selectedCategory === '전체' || p.category === selectedCategory;
+    const matchSubCategory = selectedSubCategory === '전체' || p.subCategory === selectedSubCategory;
+    const matchSearch = searchQuery === '' || 
+      p.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (p.subCategory && p.subCategory.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchCategory && matchSubCategory && matchSearch;
+  });
 
   // QA State
   const [qaPosts, setQaPosts] = useState<QAPost[]>([]);
@@ -127,44 +126,12 @@ export const Admin = () => {
     if (savedQa) {
       setQaPosts(JSON.parse(savedQa));
     }
-
-    // Load Settings
-    const savedHeroImage = localStorage.getItem('homeHeroImage');
-    if (savedHeroImage) {
-      setHomeHeroImage(savedHeroImage);
-    }
-    setCategories(getCategories());
   }, []);
-
-  const handleSaveSettings = () => {
-    localStorage.setItem('homeHeroImage', homeHeroImage);
-    alert('설정이 저장되었습니다.');
-  };
-
-  const handleAddCategory = () => {
-    if (!newCategory.trim()) return;
-    if (categories.includes(newCategory.trim())) {
-      alert('이미 존재하는 카테고리입니다.');
-      return;
-    }
-    const updatedCategories = [...categories, newCategory.trim()];
-    setCategories(updatedCategories);
-    saveCategories(updatedCategories);
-    setNewCategory('');
-  };
-
-  const handleDeleteCategory = (categoryToDelete: string) => {
-    if (confirm(`'${categoryToDelete}' 카테고리를 삭제하시겠습니까?`)) {
-      const updatedCategories = categories.filter(c => c !== categoryToDelete);
-      setCategories(updatedCategories);
-      saveCategories(updatedCategories);
-    }
-  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const actualPassword = localStorage.getItem('adminPassword') || 'admin1234';
-    if (passwordInput === actualPassword) {
+    const adminPassword = localStorage.getItem('adminPassword') || 'admin1234';
+    if (passwordInput === adminPassword) {
       setIsAdmin(true);
       sessionStorage.setItem('isAdmin', 'true');
     } else {
@@ -172,41 +139,11 @@ export const Admin = () => {
     }
   };
 
-  const handleChangePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    const actualPassword = localStorage.getItem('adminPassword') || 'admin1234';
-    if (currentPwd !== actualPassword) {
-      alert('현재 비밀번호가 일치하지 않습니다.');
-      return;
-    }
-    if (newPwd !== confirmPwd) {
-      alert('새 비밀번호가 일치하지 않습니다.');
-      return;
-    }
-    if (newPwd.length < 4) {
-      alert('새 비밀번호는 4자리 이상이어야 합니다.');
-      return;
-    }
-    localStorage.setItem('adminPassword', newPwd);
-    alert('비밀번호가 성공적으로 변경되었습니다.');
-    setIsChangingPassword(false);
-    setCurrentPwd('');
-    setNewPwd('');
-    setConfirmPwd('');
-  };
-
   const handleLogout = () => {
     setIsAdmin(false);
     sessionStorage.removeItem('isAdmin');
     navigate('/');
   };
-
-  const filteredAdminProjects = projects.filter(p => 
-    !projectSearchQuery || 
-    (p.subCategory && p.subCategory.toLowerCase().includes(projectSearchQuery.toLowerCase())) || 
-    (p.title && p.title.toLowerCase().includes(projectSearchQuery.toLowerCase())) ||
-    (p.category && p.category.toLowerCase().includes(projectSearchQuery.toLowerCase()))
-  );
 
   // Gallery Functions
   const handleSaveProject = (newProject: Project) => {
@@ -299,6 +236,36 @@ export const Admin = () => {
     }
   };
 
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    const adminPassword = localStorage.getItem('adminPassword') || 'admin1234';
+    
+    if (currentPassword !== adminPassword) {
+      alert('현재 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      alert('새 비밀번호가 일치하지 않습니다.');
+      return;
+    }
+    
+    if (newPassword.length < 4) {
+      alert('새 비밀번호는 4자리 이상이어야 합니다.');
+      return;
+    }
+    
+    localStorage.setItem('adminPassword', newPassword);
+    alert('비밀번호가 성공적으로 변경되었습니다. 다시 로그인해주세요.');
+    
+    // Reset and logout
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setShowChangePasswordModal(false);
+    handleLogout();
+  };
+
   // QA Functions
   const handleReply = (id: number, reply: string) => {
     const today = new Date().toISOString().split('T')[0];
@@ -351,18 +318,18 @@ export const Admin = () => {
               <label className="block text-sm font-medium text-sage-700 mb-1">비밀번호</label>
               <div className="relative">
                 <input 
-                  type={showLoginPwd ? "text" : "password"} 
+                  type={showPasswordInput ? "text" : "password"}
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  className="w-full p-3 pr-10 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none transition-all"
+                  className="w-full p-3 pr-12 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none transition-all"
                   placeholder="비밀번호를 입력하세요"
                 />
                 <button 
                   type="button"
-                  onClick={() => setShowLoginPwd(!showLoginPwd)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600"
+                  onClick={() => setShowPasswordInput(!showPasswordInput)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600 p-1"
                 >
-                  {showLoginPwd ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPasswordInput ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
@@ -389,10 +356,10 @@ export const Admin = () => {
           </h1>
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => setIsChangingPassword(true)}
+              onClick={() => setShowChangePasswordModal(true)}
               className="text-sm text-sage-500 hover:text-sage-800 flex items-center gap-1"
             >
-              <Key size={16} /> 비밀번호 변경
+              <Settings size={16} /> 비밀번호 변경
             </button>
             <button 
               onClick={handleLogout}
@@ -428,14 +395,14 @@ export const Admin = () => {
             {activeTab === 'qa' && <motion.div layoutId="adminTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-sage-900" />}
           </button>
           <button
-            onClick={() => setActiveTab('settings')}
+            onClick={() => setActiveTab('home')}
             className={cn(
               "pb-4 px-2 md:px-4 font-bold text-sm md:text-lg transition-colors relative whitespace-nowrap flex-shrink-0",
-              activeTab === 'settings' ? "text-sage-900" : "text-sage-400 hover:text-sage-600"
+              activeTab === 'home' ? "text-sage-900" : "text-sage-400 hover:text-sage-600"
             )}
           >
             <span className="flex items-center gap-1.5 md:gap-2"><Settings className="w-4 h-4 md:w-5 md:h-5" /> 관리</span>
-            {activeTab === 'settings' && <motion.div layoutId="adminTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-sage-900" />}
+            {activeTab === 'home' && <motion.div layoutId="adminTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-sage-900" />}
           </button>
         </div>
 
@@ -449,26 +416,74 @@ export const Admin = () => {
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <h2 className="text-lg md:text-2xl font-bold text-sage-900 whitespace-nowrap">포트폴리오 목록</h2>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="relative flex-1 sm:w-64">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  {/* Search Bar */}
+                  <div className="relative w-full sm:w-64 flex-shrink-0">
                     <input
                       type="text"
-                      placeholder="세부 카테고리 또는 제목 검색"
-                      value={projectSearchQuery}
-                      onChange={(e) => setProjectSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-3 py-1.5 md:py-2 border border-sage-200 rounded-lg text-sm focus:outline-none focus:border-sage-500"
+                      placeholder="세부 카테고리 또는 제목 검색..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-sage-200 rounded-full focus:outline-none focus:ring-2 focus:ring-sage-500 focus:border-transparent text-sm"
                     />
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400" size={16} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-sage-400 w-4 h-4" />
                   </div>
                   <button 
                     onClick={() => setIsWritingProject(true)}
-                    className="px-3 py-1.5 md:px-4 md:py-2 bg-sage-800 text-white text-xs md:text-base font-bold rounded-lg hover:bg-sage-900 flex items-center gap-1.5 md:gap-2 whitespace-nowrap flex-shrink-0"
+                    className="px-3 py-1.5 md:px-4 md:py-2 bg-sage-800 text-white text-xs md:text-base font-bold rounded-lg hover:bg-sage-900 flex items-center justify-center gap-1.5 md:gap-2 whitespace-nowrap flex-shrink-0 h-[38px] md:h-[42px]"
                   >
                     <Plus className="w-4 h-4 md:w-[18px] md:h-[18px]" /> <span className="hidden sm:inline">새 프로젝트 등록</span><span className="sm:hidden">등록</span>
                   </button>
                 </div>
+              </div>
+
+              {/* Category Filter */}
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={cn(
+                        "px-4 py-1.5 rounded-full text-xs font-medium transition-all border",
+                        selectedCategory === cat
+                          ? "bg-sage-800 text-white border-sage-800 shadow-md"
+                          : "bg-white text-sage-600 border-sage-200 hover:border-sage-400"
+                      )}
+                    >
+                      {cat}{(cat !== '전체' && cat !== '가구') ? '공간' : ''}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Sub Category Filter */}
+                <AnimatePresence>
+                  {selectedCategory !== '전체' && availableSubCategories.length > 1 && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0, marginTop: -16 }}
+                      animate={{ opacity: 1, height: 'auto', marginTop: 0 }}
+                      exit={{ opacity: 0, height: 0, marginTop: -16 }}
+                      className="flex flex-wrap gap-2 overflow-hidden"
+                    >
+                      {availableSubCategories.map((sub) => (
+                        <button
+                          key={sub}
+                          onClick={() => setSelectedSubCategory(sub)}
+                          className={cn(
+                            "px-3 py-1 rounded-full text-[11px] font-medium transition-all border",
+                            selectedSubCategory === sub
+                              ? "bg-sage-600 text-white border-sage-600"
+                              : "bg-sage-50 text-sage-500 border-sage-200 hover:bg-sage-100"
+                          )}
+                        >
+                          {sub}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <div className="bg-white rounded-2xl shadow-sm border border-sage-100 overflow-hidden">
@@ -486,7 +501,7 @@ export const Admin = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-sage-100">
-                      {filteredAdminProjects.map((p) => (
+                      {filteredProjects.map((p) => (
                         <tr 
                           key={p.id} 
                           className="hover:bg-sage-50/60 transition-colors group cursor-pointer"
@@ -523,7 +538,7 @@ export const Admin = () => {
 
                 {/* Mobile Grid View */}
                 <div className="md:hidden grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
-                  {filteredAdminProjects.map((p) => (
+                  {filteredProjects.map((p) => (
                     <div 
                       key={p.id} 
                       className="bg-white rounded-xl overflow-hidden border border-sage-200 shadow-sm cursor-pointer"
@@ -624,112 +639,215 @@ export const Admin = () => {
                 </table>
               </div>
             </motion.div>
-          ) : activeTab === 'settings' ? (
+          ) : (
             <motion.div 
-              key="settings"
+              key="home"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="space-y-6"
+              className="space-y-6 max-w-2xl mx-auto"
             >
               <h2 className="text-lg md:text-2xl font-bold text-sage-900 whitespace-nowrap">관리</h2>
               
-              <div className="bg-white rounded-2xl shadow-sm border border-sage-100 p-6 md:p-8">
-                <div className="max-w-2xl">
-                  <h3 className="text-lg font-bold text-sage-900 mb-4">메인 화면 설정</h3>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold text-sage-700 mb-2">히어로 이미지 URL</label>
-                      <p className="text-xs text-sage-500 mb-3">메인 화면 상단에 표시되는 큰 배경 이미지의 URL을 입력하세요.</p>
-                      <input 
-                        type="text" 
-                        value={homeHeroImage}
-                        onChange={(e) => setHomeHeroImage(e.target.value)}
-                        className="w-full p-3 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none"
-                        placeholder="https://example.com/image.jpg"
-                      />
-                    </div>
-                    
-                    {homeHeroImage && (
-                      <div className="mt-4">
-                        <label className="block text-sm font-bold text-sage-700 mb-2">이미지 미리보기</label>
-                        <div className="aspect-video relative rounded-lg overflow-hidden border border-sage-200 bg-sage-50">
-                          <img 
-                            src={homeHeroImage} 
-                            alt="Hero Preview" 
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1581428982868-e410dd047a90?q=80&w=2000&auto=format&fit=crop';
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="pt-6 border-t border-sage-100">
-                      <button 
-                        onClick={handleSaveSettings}
-                        className="px-6 py-3 bg-sage-800 text-white font-bold rounded-lg hover:bg-sage-900 transition-colors"
-                      >
-                        설정 저장
-                      </button>
-                    </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-sage-100 overflow-hidden p-6 md:p-8">
+                <h3 className="text-xl font-bold text-sage-800 mb-6 flex items-center gap-2">
+                  <Image className="w-5 h-5 text-sage-500" />
+                  메인(히어로) 이미지 변경
+                </h3>
+                
+                <form onSubmit={handleSaveHomeHeroImage} className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-sage-700 mb-1">이미지 URL</label>
+                    <input 
+                      type="url"
+                      value={homeHeroImage}
+                      onChange={(e) => setHomeHeroImage(e.target.value)}
+                      className="w-full p-3 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none transition-all"
+                      placeholder="https://..."
+                      required
+                    />
+                    <p className="text-xs text-sage-500 mt-2">
+                      메인 화면의 첫 번째 섹션 배경으로 사용될 이미지의 URL을 입력하세요. 고해상도 이미지를 권장합니다.
+                    </p>
                   </div>
-                </div>
+                  
+                  {homeHeroImage && (
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-sage-700 mb-2">미리보기</label>
+                      <div className="aspect-[21/9] w-full rounded-xl overflow-hidden border border-sage-200">
+                        <img 
+                          src={homeHeroImage} 
+                          alt="Hero Preview" 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2000&auto=format&fit=crop';
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="pt-4">
+                    <button 
+                      type="submit"
+                      className="w-full py-3 bg-sage-800 text-white font-bold rounded-lg hover:bg-sage-900 transition-colors"
+                    >
+                      저장하기
+                    </button>
+                  </div>
+                </form>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-sm border border-sage-100 p-6 md:p-8">
-                <div className="max-w-2xl">
-                  <h3 className="text-lg font-bold text-sage-900 mb-4">카테고리 관리</h3>
-                  <p className="text-xs text-sage-500 mb-4">포트폴리오에 사용될 카테고리를 추가하거나 삭제할 수 있습니다.</p>
-                  
-                  <div className="space-y-4">
-                    <div className="flex gap-2">
-                      <input 
-                        type="text" 
-                        value={newCategory}
-                        onChange={(e) => setNewCategory(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-                        className="flex-1 p-3 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none"
-                        placeholder="새 카테고리 이름"
-                      />
-                      <button 
-                        onClick={handleAddCategory}
-                        className="px-6 py-3 bg-sage-800 text-white font-bold rounded-lg hover:bg-sage-900 transition-colors whitespace-nowrap"
-                      >
-                        추가
-                      </button>
-                    </div>
+              {/* Category Management */}
+              <div className="bg-white rounded-2xl shadow-sm border border-sage-100 overflow-hidden p-6 md:p-8">
+                <h3 className="text-xl font-bold text-sage-800 mb-6 flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-sage-500" />
+                  카테고리 관리
+                </h3>
+                
+                <form onSubmit={handleAddCategory} className="flex gap-2 mb-6">
+                  <input
+                    type="text"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    placeholder="새 카테고리 이름"
+                    className="flex-1 p-3 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none transition-all"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-3 bg-sage-800 text-white font-bold rounded-lg hover:bg-sage-900 transition-colors whitespace-nowrap"
+                  >
+                    추가
+                  </button>
+                </form>
 
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      <DndContext 
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <SortableContext 
-                          items={categories}
-                          strategy={rectSortingStrategy}
+                <Reorder.Group axis="x" values={categories} onReorder={handleReorder} className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <Reorder.Item
+                      key={cat}
+                      value={cat}
+                      className="flex items-center gap-2 px-4 py-2 bg-sage-50 text-sage-800 rounded-full border border-sage-200 cursor-grab active:cursor-grabbing"
+                    >
+                      <span className="text-sm font-medium">{cat}</span>
+                      {cat !== '전체' && (
+                        <button
+                          onClick={() => handleDeleteCategory(cat)}
+                          className="text-sage-400 hover:text-red-500 transition-colors"
+                          title="삭제"
                         >
-                          {categories.map((category) => (
-                            <SortableCategory 
-                              key={category} 
-                              category={category} 
-                              onDelete={() => handleDeleteCategory(category)} 
-                            />
-                          ))}
-                        </SortableContext>
-                      </DndContext>
-                    </div>
-                  </div>
-                </div>
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </Reorder.Item>
+                  ))}
+                </Reorder.Group>
               </div>
             </motion.div>
-          ) : null}
+          )}
         </AnimatePresence>
       </div>
+
+      {/* Change Password Modal */}
+      <AnimatePresence>
+        {showChangePasswordModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-6 border-b flex justify-between items-center bg-white">
+                <h3 className="text-xl font-bold text-sage-800 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-sage-500" />
+                  비밀번호 변경
+                </h3>
+                <button onClick={() => setShowChangePasswordModal(false)} className="text-sage-400 hover:text-sage-600">
+                  <X size={24} />
+                </button>
+              </div>
+              
+              <div className="p-6">
+                <form onSubmit={handleChangePassword} className="space-y-5">
+                  <div>
+                    <label className="block text-sm font-medium text-sage-700 mb-1">현재 비밀번호</label>
+                    <div className="relative">
+                      <input 
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        className="w-full p-3 pr-12 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none transition-all"
+                        placeholder="현재 비밀번호를 입력하세요"
+                        required
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600 p-1"
+                      >
+                        {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-sage-700 mb-1">새 비밀번호</label>
+                    <div className="relative">
+                      <input 
+                        type={showNewPassword ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className="w-full p-3 pr-12 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none transition-all"
+                        placeholder="새 비밀번호를 입력하세요"
+                        required
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600 p-1"
+                      >
+                        {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-sage-700 mb-1">새 비밀번호 확인</label>
+                    <div className="relative">
+                      <input 
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="w-full p-3 pr-12 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none transition-all"
+                        placeholder="새 비밀번호를 다시 입력하세요"
+                        required
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600 p-1"
+                      >
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-4">
+                    <button 
+                      type="submit"
+                      className="w-full py-3 bg-sage-800 text-white font-bold rounded-lg hover:bg-sage-900 transition-colors"
+                    >
+                      비밀번호 변경
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Write Project Modal */}
       <AnimatePresence>
@@ -740,8 +858,9 @@ export const Admin = () => {
               setEditingProject(null);
             }} 
             onSave={handleSaveProject} 
-            categories={categories}
+            categories={categories.filter(c => c !== '전체')}
             initialData={editingProject}
+            existingSubCategories={availableSubCategories.filter(sub => sub !== '전체')}
           />
         )}
       </AnimatePresence>
@@ -840,104 +959,15 @@ export const Admin = () => {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Change Password Modal */}
-      <AnimatePresence>
-        {isChangingPassword && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
-            >
-              <div className="p-6 border-b flex justify-between items-center bg-white">
-                <h2 className="text-xl font-bold text-sage-900">비밀번호 변경</h2>
-                <button onClick={() => setIsChangingPassword(false)}><X size={24} className="text-sage-500" /></button>
-              </div>
-              <form onSubmit={handleChangePassword} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-sage-700 mb-1">현재 비밀번호</label>
-                  <div className="relative">
-                    <input 
-                      type={showCurrentPwd ? "text" : "password"} 
-                      value={currentPwd}
-                      onChange={(e) => setCurrentPwd(e.target.value)}
-                      className="w-full p-3 pr-10 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none"
-                      required
-                      placeholder="현재 비밀번호 입력"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowCurrentPwd(!showCurrentPwd)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600"
-                    >
-                      {showCurrentPwd ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-sage-700 mb-1">새 비밀번호</label>
-                  <div className="relative">
-                    <input 
-                      type={showNewPwd ? "text" : "password"} 
-                      value={newPwd}
-                      onChange={(e) => setNewPwd(e.target.value)}
-                      className="w-full p-3 pr-10 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none"
-                      required
-                      placeholder="새 비밀번호 입력"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowNewPwd(!showNewPwd)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600"
-                    >
-                      {showNewPwd ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-sage-700 mb-1">새 비밀번호 확인</label>
-                  <div className="relative">
-                    <input 
-                      type={showConfirmPwd ? "text" : "password"} 
-                      value={confirmPwd}
-                      onChange={(e) => setConfirmPwd(e.target.value)}
-                      className="w-full p-3 pr-10 border border-sage-200 rounded-lg focus:ring-2 focus:ring-sage-500 outline-none"
-                      required
-                      placeholder="새 비밀번호 다시 입력"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => setShowConfirmPwd(!showConfirmPwd)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-sage-400 hover:text-sage-600"
-                    >
-                      {showConfirmPwd ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="pt-4">
-                  <button 
-                    type="submit"
-                    className="w-full py-3 bg-sage-800 text-white font-bold rounded-lg hover:bg-sage-900 transition-colors"
-                  >
-                    비밀번호 변경
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
 
 // Reusing the WritePostModal from Gallery.tsx logic but standalone here to avoid circular deps or complex exports
 // Ideally this should be a shared component, but for now I'll duplicate the form logic for simplicity and speed
-const WritePostModal = ({ onClose, onSave, categories, initialData }: { onClose: () => void, onSave: (p: Project) => void, categories: string[], initialData?: Project | null }) => {
+const WritePostModal = ({ onClose, onSave, categories, initialData, existingSubCategories }: { onClose: () => void, onSave: (p: Project) => void, categories: string[], initialData?: Project | null, existingSubCategories: string[] }) => {
   const [formData, setFormData] = useState<Partial<Project>>({
-    category: categories[0] as any,
+    category: categories.length > 0 ? categories[0] : '주거',
     subCategory: '',
     title: '',
     area: '',
@@ -1091,12 +1121,18 @@ const WritePostModal = ({ onClose, onSave, categories, initialData }: { onClose:
                 <label className="block text-sm font-medium mb-1">세부 카테고리</label>
                 <input 
                   type="text" 
+                  list="subcategories"
                   className="w-full p-2 border rounded-lg"
                   value={formData.subCategory}
                   onChange={(e) => setFormData({...formData, subCategory: e.target.value})}
                   placeholder="예: 아파트, 카페"
                   required
                 />
+                <datalist id="subcategories">
+                  {existingSubCategories.map(sub => (
+                    <option key={sub} value={sub} />
+                  ))}
+                </datalist>
               </div>
             </div>
 

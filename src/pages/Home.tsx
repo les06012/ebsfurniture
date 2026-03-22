@@ -8,16 +8,10 @@ import { PROJECTS, getProjects } from '../data/projects';
 export const Home = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [heroImage, setHeroImage] = useState(() => {
+    return localStorage.getItem('homeHeroImage') || 'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?q=80&w=2000&auto=format&fit=crop';
+  });
   const projectsList = getProjects();
-
-  const [heroImage, setHeroImage] = useState('https://images.unsplash.com/photo-1581428982868-e410dd047a90?q=80&w=2000&auto=format&fit=crop');
-
-  React.useEffect(() => {
-    const savedImage = localStorage.getItem('homeHeroImage');
-    if (savedImage) {
-      setHeroImage(savedImage);
-    }
-  }, []);
 
   const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -50,18 +44,18 @@ export const Home = () => {
   };
 
   const features = [
-    { title: '공간 맞춤 가구 설계', desc: '거주자의 동선과 공간 특성을 분석하여 최적의 가구 레이아웃을 제안합니다.' },
-    { title: '투명한 제작 견적', desc: '투명한 견적 산출과 철저한 공정 관리로 예산 내 최상의 가구 품질을 보장합니다.' },
-    { title: '자체 공장 맞춤 제작', desc: '자체 공장에서 직접 제작하여 마진을 줄이고 디테일한 완성도를 높입니다.' },
-    { title: '철저한 사후 관리', desc: '가구 설치 후에도 안심할 수 있도록 체계적이고 신속한 AS를 운영합니다.' },
+    { title: '사용자 중심 설계', desc: '거주자의 동선과 생활 습관을 면밀히 분석하여 최적의 레이아웃을 제안합니다.' },
+    { title: '공정/예산 관리', desc: '투명한 견적 산출과 철저한 공정 관리를 통해 예산 내 최상의 품질을 보장합니다.' },
+    { title: '맞춤가구 디테일', desc: '공간의 효율을 극대화하는 자체 제작 맞춤 가구로 완성도를 높입니다.' },
+    { title: '사후관리 대응', desc: '시공 후에도 안심하고 사용하실 수 있도록 체계적인 AS 시스템을 운영합니다.' },
   ];
 
   const processes = [
-    { step: '01', title: '상담 및 현장 실측', desc: '가구 용도 상담 및 공간 실측' },
-    { step: '02', title: '설계 및 디자인 제안', desc: '가구 구조 및 마감재 제안' },
-    { step: '03', title: '계약 및 제작', desc: '견적 확정 및 자체 공장 제작' },
-    { step: '04', title: '배송 및 시공', desc: '안전한 운송 및 전문 설치' },
-    { step: '05', title: '검수 및 사후관리', desc: '최종 품질 점검 및 AS 안내' },
+    { step: '01', title: '상담 및 현장 진단', desc: '요구사항 상담 및 실측' },
+    { step: '02', title: '맞춤 설계 및 제안', desc: '디자인 방향 및 자재 제안' },
+    { step: '03', title: '계약', desc: '견적 및 일정 확정' },
+    { step: '04', title: '시공 및 감리', desc: '철저한 현장 품질 관리' },
+    { step: '05', title: '검수 및 인수인계', desc: '최종 점검 및 AS 안내' },
   ];
 
   return (
@@ -86,14 +80,14 @@ export const Home = () => {
             className="text-center"
           >
             <p className="text-white/90 text-xl md:text-2xl mb-4 font-medium tracking-tight">
-              “공간에 가치를 담다, 가구의 선두주자”
+              “공간에 가치를 담다, 인테리어의 선두주자”
             </p>
             <h1 className="text-5xl md:text-8xl font-bold text-white leading-tight mb-8">
               에바스
             </h1>
             <div className="space-y-2 mb-10">
               <p className="text-lg md:text-xl text-white/90 font-light">
-                친환경 맞춤가구 제작 전문
+                맞춤가구 친환경 인테리어 전문
               </p>
               <p className="text-lg md:text-xl text-white/90 font-light">
                 상담 문의 환영
@@ -120,12 +114,12 @@ export const Home = () => {
       {/* Features */}
       <section className="px-4">
         <SectionTitle title="핵심 강점" subtitle="에바스가 추구하는 가치입니다." />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {features.map((f, i) => (
-            <div key={i} className="p-6 lg:p-5 xl:p-8 bg-white rounded-2xl border border-sage-100 shadow-sm hover:shadow-md transition-shadow">
+            <div key={i} className="p-8 bg-white rounded-2xl border border-sage-100 shadow-sm hover:shadow-md transition-shadow">
               <CheckCircle2 className="text-sage-600 mb-4" size={32} />
-              <h3 className="text-lg lg:text-base xl:text-xl font-bold mb-3 whitespace-nowrap tracking-tight">{f.title}</h3>
-              <p className="text-sage-600 text-[13px] lg:text-[12px] xl:text-[13px] leading-relaxed break-keep">{f.desc}</p>
+              <h3 className="text-xl font-bold mb-3">{f.title}</h3>
+              <p className="text-sage-600 text-sm leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -173,14 +167,14 @@ export const Home = () => {
         <div className="max-w-5xl mx-auto">
           <div className="mb-12 text-center">
             <h2 className="text-3xl font-bold text-sage-900 tracking-tight mb-2">업무 프로세스</h2>
-            <p className="text-sage-600 text-[11px] sm:text-sm whitespace-nowrap tracking-tighter sm:tracking-normal">체계적인 단계별 관리를 통해 완성도 높은 맞춤 가구를 만듭니다.</p>
+            <p className="text-sage-600 text-[11px] sm:text-sm whitespace-nowrap tracking-tighter sm:tracking-normal">체계적인 단계별 관리를 통해 완성도 높은 공간을 만듭니다.</p>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             {processes.map((p, i) => (
-              <div key={i} className="relative p-4 lg:p-5 xl:p-6 bg-white rounded-xl border border-sage-200 flex flex-col">
-                <span className="text-2xl lg:text-3xl font-black text-sage-200 mb-4">{p.step}</span>
-                <h4 className="font-bold text-[14px] lg:text-[13px] xl:text-base mb-1.5 whitespace-nowrap tracking-tighter">{p.title}</h4>
-                <p className="text-[11px] lg:text-[10px] xl:text-xs text-sage-500 break-keep">{p.desc}</p>
+              <div key={i} className="relative p-6 bg-white rounded-xl border border-sage-200">
+                <span className="text-3xl font-black text-sage-100 absolute top-4 right-4">{p.step}</span>
+                <h4 className="font-bold mb-2 relative z-10">{p.title}</h4>
+                <p className="text-xs text-sage-500 relative z-10">{p.desc}</p>
               </div>
             ))}
           </div>
@@ -204,7 +198,7 @@ export const Home = () => {
           </div>
           <div className="md:col-span-2 space-y-2">
             <label className="text-xs font-bold text-sage-600">문의내용</label>
-            <textarea name="message" required className="w-full px-4 py-3 bg-white border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-200 h-32" placeholder="가구 종류, 배치할 공간, 대략적인 치수 등 문의하실 내용을 남겨주세요"></textarea>
+            <textarea name="message" required className="w-full px-4 py-3 bg-white border border-sage-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sage-200 h-32" placeholder="공사 유형, 지역, 면적 등 대략적인 내용을 남겨주세요"></textarea>
           </div>
           <div className="md:col-span-2 flex items-center gap-2">
             <input type="checkbox" id="privacy" name="privacy_consent" required className="w-4 h-4 accent-sage-800" />

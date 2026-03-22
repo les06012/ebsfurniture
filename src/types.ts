@@ -1,7 +1,7 @@
 export interface Project {
   id: string;
   title: string;
-  category: string;
+  category: '주거' | '상업' | '사무' | '숙박' | '가구';
   subCategory: string;
   area: string;
   location: string;
